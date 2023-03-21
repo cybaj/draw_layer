@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenLayers - Playgrounds Example</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css"
+    />
+    <style>
+      html,
+      body,
+      #map {
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+    <script>
+      const map = new ol.Map({
+        target: "map",
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM(),
+          }),
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([126.996771, 37.553012]),
+          zoom: 12,
+        }),
+      });
+
+      async function loadPlaygrounds() {
+        const response = await fetch("http://localhost:3000/playgrounds");
+        const playgrounds = await response.json();
+
+        const geojson = {
+          type: "FeatureCollection",
+          features: playgrounds.map((playground) => ({
+            type: "Feature",
+            geometry: playground.area,
+            properties: {
+              id: playground.id,
+              playground_name: playground.playground_name,
+              address: playground.address,
+            },
+          })),
+        };
+
+        const vectorSource = new ol.source.Vector({
+          features: new ol.format.GeoJSON().readFeatures(geojson, {
+            featureProjection: "EPSG:4326",
+          }),
+        });
+
+        const playgroundLayer = new ol.layer.Vector({
+          source: vectorSource,
+        });
+
+        map.addLayer(playgroundLayer);
+      }
+
+      loadPlaygrounds();
+
+      // Add a vector layer for the new playground area
+      const newPlaygroundAreaSource = new ol.source.Vector();
+      const newPlaygroundAreaLayer = new ol.layer.Vector({
+        source: newPlaygroundAreaSource,
+      });
+      map.addLayer(newPlaygroundAreaLayer);
+
+      // Add a draw interaction to the map
+      const draw = new ol.interaction.Draw({
+        source: newPlaygroundAreaSource,
+        type: "Polygon",
+      });
+
+      // Save the drawn feature to the backend
+      draw.on("drawend", async (event) => {
+        const feature = event.feature;
+        const format = new ol.format.GeoJSON();
+        const playgroundAreaGeoJSON = format.writeFeatureObject(feature);
+
+        // Send the playground area to the backend
+        try {
+          const response = await fetch("http://localhost:3000/playgrounds", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(playgroundAreaGeoJSON),
+          });
+          const result = await response.json();
+          console.log("Playground area saved:", result);
+        } catch (error) {
+          console.error("Error saving playground area:", error);
+        }
+      });
+
+      map.addInteraction(draw);
+    </script>
+  </body>
+</html>

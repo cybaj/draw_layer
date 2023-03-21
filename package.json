@@ -1,0 +1,16 @@
+{
+  "name": "draw-layer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/cybaj/draw_layer",
+  "author": "cybaj",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "pg": "^8.10.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

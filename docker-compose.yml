@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:13-3.1
+    environment:
+      POSTGRES_USER: your_user
+      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: your_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - draw_layer_network
+
+  server:
+    build: .
+    command: npm start
+    environment:
+      DB_HOST: db
+      DB_USER: your_user
+      DB_PASSWORD: your_password
+      DB_DATABASE: your_database
+      DB_PORT: 5432
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    networks:
+      - draw_layer_network
+
+  frontweb:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
+    depends_on:
+      - server
+    networks:
+      - draw_layer_network
+
+volumes:
+  db_data:
+networks:
+  draw_layer_network:
+    external: true
