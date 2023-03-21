@@ -36,7 +36,7 @@ app.post('/playgrounds', express.json(), async (req, res) => {
     const geojson = req.body;
 
     // Log the received GeoJSON object
-    console.log('Received GeoJSON:', geojson);
+    console.debug('Received GeoJSON:', geojson);
 
     const result = await pool.query(`
       INSERT INTO playground_areas (area)

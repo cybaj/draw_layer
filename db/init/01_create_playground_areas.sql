@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS playground_areas (
   id SERIAL PRIMARY KEY,
   playground_name VARCHAR(255),
   address VARCHAR(255),
-  area GEOGRAPHY(POLYGON, 4326)
+  area GEOMETRY (POLYGON, 4326)
 );
 
 CREATE INDEX playground_areas_area_idx ON playground_areas USING gist(area);
+

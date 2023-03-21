@@ -20,23 +20,42 @@
   </head>
   <body>
     <div id="map"></div>
+    <button onclick="loadPlaygrounds">load features</button>
     <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
     <script>
+      const wmsUrl = "http://localhost:8100/geoserver/wms";
+      const layerName = "my:playground_areas";
+
+      const wmsSource = new ol.source.ImageWMS({
+        url: wmsUrl,
+        params: {
+          LAYERS: layerName,
+          TILED: true,
+        },
+        serverType: "geoserver",
+        crossOrigin: "anonymous",
+      });
+
+      const wmsLayer = new ol.layer.Image({
+        source: wmsSource,
+      });
+
       const map = new ol.Map({
         target: "map",
         layers: [
           new ol.layer.Tile({
             source: new ol.source.OSM(),
           }),
+          wmsLayer,
         ],
         view: new ol.View({
-          center: ol.proj.fromLonLat([126.996771, 37.553012]),
+          center: ol.proj.fromLonLat([126.9845375, 37.5633489], "EPSG:3857"),
           zoom: 12,
         }),
       });
 
       async function loadPlaygrounds() {
-        const response = await fetch("http://localhost:3000/playgrounds");
+        const response = await fetch("http://localhost:3000/playground_areas");
         const playgrounds = await response.json();
 
         const geojson = {
@@ -54,7 +73,7 @@
 
         const vectorSource = new ol.source.Vector({
           features: new ol.format.GeoJSON().readFeatures(geojson, {
-            featureProjection: "EPSG:4326",
+            featureProjection: "EPSG:3857",
           }),
         });
 
@@ -65,10 +84,8 @@
         map.addLayer(playgroundLayer);
       }
 
-      loadPlaygrounds();
-
       // Add a vector layer for the new playground area
-      const newPlaygroundAreaSource = new ol.source.Vector();
+      const newPlaygroundAreaSource = new ol.source.Vector({});
       const newPlaygroundAreaLayer = new ol.layer.Vector({
         source: newPlaygroundAreaSource,
       });
@@ -84,7 +101,14 @@
       draw.on("drawend", async (event) => {
         const feature = event.feature;
         const format = new ol.format.GeoJSON();
-        const playgroundAreaGeoJSON = format.writeFeatureObject(feature);
+
+        console.debug(format);
+        const playgroundAreaGeoJSON = format.writeFeatureObject(feature, {
+          // from 3857 to 4326
+          featureProjection: "EPSG:3857",
+          dataProjection: "EPSG:4326",
+        });
+        console.debug(playgroundAreaGeoJSON);
 
         // Send the playground area to the backend
         try {
