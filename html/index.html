@@ -22,87 +22,135 @@
     <div id="map"></div>
     <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
     <script>
+      const layerNameSet = new Set([]);
+      window._layers = layerNameSet;
+      const roadStyleCache = {};
+      const roadColor = {
+        major_road: "#776",
+        minor_road: "#ccb",
+        highway: "#f39",
+      };
+      const buildingStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: "#666",
+          opacity: 0.4,
+        }),
+        stroke: new ol.style.Stroke({
+          color: "#444",
+          width: 1,
+        }),
+      });
+      const placeStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: "#ffcc00",
+          opacity: 0.4,
+        }),
+        stroke: new ol.style.Stroke({
+          color: "#444",
+          width: 1,
+        }),
+      });
+      const landcoverStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: "#22b922",
+        }),
+      });
+      const landuseStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: "#d4f4d5",
+        }),
+      });
+      const boundaryStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: "#ffcc00",
+          opacity: 0.4,
+        }),
+        stroke: new ol.style.Stroke({
+          color: "#444",
+          width: 1,
+        }),
+      });      const waterStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: "#9db9e8",
+        }),
+      });
+      const transportationStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: "#f39",
+        }),
+      });
+      const roadStyle = function (feature) {
+        const kind = feature.get("kind");
+        const railway = feature.get("railway");
+        const sort_key = feature.get("sort_key");
+        const styleKey = kind + "/" + railway + "/" + sort_key;
+        let style = roadStyleCache[styleKey];
+        if (!style) {
+          let color, width;
+          if (railway) {
+            color = "#7de";
+            width = 1;
+          } else {
+            color = roadColor[kind];
+            width = kind == "highway" ? 1.5 : 1;
+          }
+          style = new ol.style.Style({
+            stroke: new os.style.Stroke({
+              color: color,
+              width: width,
+            }),
+            zIndex: sort_key,
+          });
+          roadStyleCache[styleKey] = style;
+        }
+        return style;
+      };
+
       const map = new ol.Map({
-        target: "map",
         layers: [
-          new ol.layer.Tile({
-            source: new ol.source.OSM(),
+          new ol.layer.VectorTile({
+            source: new ol.source.VectorTile({
+              attributions:
+                "&copy; OpenStreetMap contributors, Who’s On First, " +
+                "Natural Earth, and osmdata.openstreetmap.de",
+              format: new ol.format.GeoJSON({
+                layerName: "layer",
+                layers: ["water", "landcover", "roads", "building"],
+              }),
+              maxZoom: 14,
+              url: "http://localhost:8090/data/v3/{z}/{x}/{y}.geojson",
+            }),
+            style: function (feature, resolution) {
+              layerNameSet.add(feature.get("layer"));
+              switch (feature.get("layer")) {
+                case "water":
+                  return waterStyle;
+                case "roads":
+                  return roadStyle(feature);
+                case "building":
+                  return resolution < 10 ? buildingStyle : null;
+                case "landcover":
+                  return landcoverStyle;
+                case "landuse":
+                  return landuseStyle;
+                case "transportation":
+                  return transportationStyle;
+                case "place":
+                  return placeStyle;
+                case "boundary":
+                  return boundaryStyle;
+                default:
+                  return null;
+              }
+            },
           }),
         ],
+        target: "map",
         view: new ol.View({
           center: ol.proj.fromLonLat([126.996771, 37.553012]),
           zoom: 12,
         }),
       });
-
-      async function loadPlaygrounds() {
-        const response = await fetch("http://localhost:3000/playgrounds");
-        const playgrounds = await response.json();
-
-        const geojson = {
-          type: "FeatureCollection",
-          features: playgrounds.map((playground) => ({
-            type: "Feature",
-            geometry: playground.area,
-            properties: {
-              id: playground.id,
-              playground_name: playground.playground_name,
-              address: playground.address,
-            },
-          })),
-        };
-
-        const vectorSource = new ol.source.Vector({
-          features: new ol.format.GeoJSON().readFeatures(geojson, {
-            featureProjection: "EPSG:4326",
-          }),
-        });
-
-        const playgroundLayer = new ol.layer.Vector({
-          source: vectorSource,
-        });
-
-        map.addLayer(playgroundLayer);
-      }
-
-      loadPlaygrounds();
-
-      // Add a vector layer for the new playground area
-      const newPlaygroundAreaSource = new ol.source.Vector();
-      const newPlaygroundAreaLayer = new ol.layer.Vector({
-        source: newPlaygroundAreaSource,
-      });
-      map.addLayer(newPlaygroundAreaLayer);
-
-      // Add a draw interaction to the map
-      const draw = new ol.interaction.Draw({
-        source: newPlaygroundAreaSource,
-        type: "Polygon",
-      });
-
-      // Save the drawn feature to the backend
-      draw.on("drawend", async (event) => {
-        const feature = event.feature;
-        const format = new ol.format.GeoJSON();
-        const playgroundAreaGeoJSON = format.writeFeatureObject(feature);
-
-        // Send the playground area to the backend
-        try {
-          const response = await fetch("http://localhost:3000/playgrounds", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(playgroundAreaGeoJSON),
-          });
-          const result = await response.json();
-          console.log("Playground area saved:", result);
-        } catch (error) {
-          console.error("Error saving playground area:", error);
-        }
-      });
-
-      map.addInteraction(draw);
     </script>
   </body>
 </html>
