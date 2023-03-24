@@ -113,12 +113,12 @@
               attributions:
                 "&copy; OpenStreetMap contributors, Who’s On First, " +
                 "Natural Earth, and osmdata.openstreetmap.de",
-              format: new ol.format.GeoJSON({
+              format: new ol.format.MVT({
                 layerName: "layer",
                 layers: ["water", "landcover", "roads", "building"],
               }),
               maxZoom: 14,
-              url: "http://localhost:8090/data/v3/{z}/{x}/{y}.geojson",
+              url: "http://localhost:8090/data/v3/{z}/{x}/{y}.pbf",
             }),
             style: function (feature, resolution) {
               layerNameSet.add(feature.get("layer"));
